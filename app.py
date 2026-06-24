@@ -333,7 +333,14 @@ KAB_COORDS = {
     "Kab. Alor": (-8.2, 124.5), "Kab. Belu": (-9.1, 124.8), "Kab. Timor Tengah Selatan": (-9.7, 124.2),
     "Kab. Kupang": (-9.9, 123.8), "Kota Bima": (-8.4, 118.7), "Kota Mataram": (-8.5, 116.1),
     "Kab. Lombok Utara": (-8.3, 116.2), "Kab. Dompu": (-8.5, 118.4), "Kab. Sumbawa": (-8.6, 117.4),
-    "Kab. Lombok Timur": (-8.6, 116.5), "Kab. Lombok Tengah": (-8.7, 116.2), "Kab. Lombok Barat": (-8.6, 116.1)
+    "Kab. Lombok Timur": (-8.6, 116.5), "Kab. Lombok Tengah": (-8.7, 116.2), "Kab. Lombok Barat": (-8.6, 116.1),
+
+    # ── BANTEN ──
+    "Kota Tangerang": (-6.1783, 106.6319), "Kota Tangerang Selatan": (-6.2886, 106.7179),
+    "Kota Serang": (-6.1200, 106.1503), "Kota Cilegon": (-6.0174, 106.0231),
+    "Kab. Tangerang": (-6.1702, 106.4552), "Kab. Serang": (-6.1352, 106.1601),
+    "Kab. Lebak": (-6.6000, 106.2500), "Kab. Pandeglang": (-6.5833, 105.8833),
+    
 }
 #
 # BASE CHART LAYOUT 
