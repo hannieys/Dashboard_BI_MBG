@@ -35,7 +35,7 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown p,
     [data-testid="stSidebar"] .stMarkdown small { color: #94A3B8 !important; }
     [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #FFFFFF !important; }
-    [data-testid="stSidebar"] .stSelectbox > label { display: none; }
+    [data-testid="stSidebar"] .stSelectbox > label { display: block; }
     [data-testid="stSidebar"] [data-baseweb="select"] > div {
         background-color: #243555 !important;
         border: 1px solid #334E7E !important;
@@ -134,6 +134,11 @@ st.markdown("""
     [data-testid="stTextInput"] input:focus {
         border-color: #1B2A4A;
         box-shadow: 0 0 0 2px rgba(27,42,74,0.15);
+    }
+    
+    [data-testid="stTextInput"] input::placeholder {
+        color: rgba(0, 0, 0, 0.5) !important;
+        font-weight: 400 !important;
     }
 
     /* ── Caption ── */
@@ -389,6 +394,7 @@ def get_kab_coords(kab_name):
     return KAB_COORDS.get(clean_name, (None, None))
 
 # SIDEBAR
+# SIDEBAR
 with st.sidebar:
     st.markdown("""
         <div style="text-align:center; padding-bottom:0.5rem;">
@@ -400,9 +406,29 @@ with st.sidebar:
     st.markdown("<hr>", unsafe_allow_html=True)
 
     if not df.empty and "provinsi" in df.columns:
-        st.markdown('<p style="color:#94A3B8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:0.4rem;">🗺️ Filter Provinsi</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#94A3B8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:0.4rem;">🗺️ Filter Data</p>', unsafe_allow_html=True)
+        
+        # Tombol Filter Dibuat Di Sini
         prov_list = ["Semua"] + sorted(df["provinsi"].dropna().unique().tolist())
         selected_prov = st.selectbox("Provinsi", prov_list)
+
+        kab_list = ["Semua"] + sorted(df["kabupaten_kota"].dropna().unique().tolist())
+        selected_kab = st.selectbox("Kabupaten/Kota", kab_list)
+
+        kec_list = ["Semua"] + sorted(df["kecamatan"].dropna().unique().tolist())
+        selected_kec = st.selectbox("Kecamatan", kec_list)
+
+        jenjang_list = ["Semua"] + sorted(df["jenjang"].dropna().unique().tolist())
+        selected_jenjang = st.selectbox("Jenjang Pendidikan", jenjang_list)
+        if "tahun" in df.columns:
+            tahun_list = ["Semua"] + sorted(df["tahun"].dropna().unique().astype(int).astype(str).tolist())
+            selected_tahun = st.selectbox("Tahun", tahun_list)
+        else:
+            selected_tahun = "Semua"
+
+        # Filter Negeri / Swasta
+        selected_status = st.selectbox("Status Sekolah", ["Semua", "Negeri", "Swasta"])
+
         st.markdown("<hr>", unsafe_allow_html=True)
 
         st.markdown(f"""
@@ -416,14 +442,30 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     else:
         selected_prov = "Semua"
+        selected_kab = "Semua"
+        selected_kec = "Semua"
+        selected_jenjang = "Semua"
 
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown('<p style="color:#334E7E; font-size:0.72rem; text-align:center;">by Kelompok 11 UPNVJ</p>', unsafe_allow_html=True)
 
-if not df.empty and "provinsi" in df.columns:
-    df_filtered = df[df["provinsi"] == selected_prov] if selected_prov != "Semua" else df.copy()
-else:
-    df_filtered = pd.DataFrame()
+# Terapkan semua filter ke dataframe
+df_filtered = df.copy()
+if selected_prov != "Semua":
+    df_filtered = df_filtered[df_filtered["provinsi"] == selected_prov]
+if selected_kab != "Semua":
+    df_filtered = df_filtered[df_filtered["kabupaten_kota"] == selected_kab]
+if selected_kec != "Semua":
+    df_filtered = df_filtered[df_filtered["kecamatan"] == selected_kec]
+if selected_jenjang != "Semua":
+    df_filtered = df_filtered[df_filtered["jenjang"] == selected_jenjang]
+if selected_tahun != "Semua" and "tahun" in df_filtered.columns:
+    df_filtered = df_filtered[df_filtered["tahun"] == int(selected_tahun)]
+if selected_status == "Negeri" and "jumlah_satpen_negeri" in df_filtered.columns:
+    df_filtered = df_filtered[df_filtered["jumlah_satpen_negeri"] > 0]
+elif selected_status == "Swasta" and "jumlah_satpen_swasta" in df_filtered.columns:
+    df_filtered = df_filtered[df_filtered["jumlah_satpen_swasta"] > 0]
+    
 
 # HEADER
 st.markdown(
@@ -450,6 +492,10 @@ total_penerima = df_filtered.get("jumlah_penerima_manfaat", pd.Series([0])).sum(
 total_satpen   = df_filtered.get("jumlah_satuan_pendidikan", pd.Series([0])).sum()
 total_khusus   = df_filtered.get("jumlah_kondisi_khusus", pd.Series([0])).sum()
 rasio_khusus   = (total_khusus / total_penerima * 100) if total_penerima > 0 else 0
+total_laki     = df_filtered.get("jumlah_laki", pd.Series([0])).sum()
+total_pr       = df_filtered.get("jumlah_perempuan", pd.Series([0])).sum()
+total_negeri   = df_filtered.get("jumlah_satpen_negeri", pd.Series([0])).sum()
+total_swasta   = df_filtered.get("jumlah_satpen_swasta", pd.Series([0])).sum()
 
 st.markdown(
     f'<div style="color:#1A202C; font-size:0.95rem; margin-bottom:1.5rem; line-height:1.7; '
@@ -462,12 +508,22 @@ st.markdown(
     f'</div>',
     unsafe_allow_html=True
 )
+st.markdown('<p style="color:#1B2A4A; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Profil Peserta Didik</p>', unsafe_allow_html=True)
 
 c1, c2, c3, c4 = st.columns(4)
 with c1: st.metric("🧑‍🎓 Total Penerima Manfaat", f"{total_penerima:,}")
 with c2: st.metric("🏫 Satuan Pendidikan", f"{total_satpen:,}")
 with c3: st.metric("⚠️ Siswa Kondisi Khusus", f"{total_khusus:,}")
 with c4: st.metric("📊 Rasio Kondisi Khusus", f"{rasio_khusus:.1f}%")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+st.markdown('<p style="color:#1B2A4A; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Profil Satuan Pendidikan</p>', unsafe_allow_html=True)
+
+c5, c6, c7 = st.columns(3)
+with c5: st.metric("🏫 Total Sekolah", f"{total_satpen:,}")
+with c6: st.metric("🏢 Sekolah Negeri", f"{total_negeri:,}")
+with c7: st.metric("🏘️ Sekolah Swasta", f"{total_swasta:,}")
 
 st.divider()
 
@@ -492,30 +548,47 @@ with cd1:
     fig_donut.update_layout(**CHART_BASE, showlegend=True)
     st.plotly_chart(fig_donut, use_container_width=True, theme=None)
 
-with cd2:
+with cd2: # Menjawab: Jenjang mana yang butuh layanan inklusif terbesar?
     if "jenjang" in df_filtered.columns:
-        df_jenjang = df_filtered.groupby("jenjang")["jumlah_penerima_manfaat"].sum().reset_index().sort_values("jumlah_penerima_manfaat", ascending=False)
+        df_jenjang = df_filtered.groupby("jenjang")["jumlah_kondisi_khusus"].sum().reset_index().sort_values("jumlah_kondisi_khusus", ascending=False)
         fig_jenjang = px.bar(
-            df_jenjang, x="jenjang", y="jumlah_penerima_manfaat",
-            title="📚 Beban Porsi per Jenjang", text_auto=".2s",
-            color="jumlah_penerima_manfaat", color_continuous_scale=[[0, "#90CDF4"], [1, "#1B2A4A"]],
+            df_jenjang, x="jenjang", y="jumlah_kondisi_khusus",
+            title="📚 Kebutuhan Inklusif per Jenjang", text_auto=".2s",
+            color="jumlah_kondisi_khusus", color_continuous_scale=[[0, "#FEB2B2"], [1, "#E53E3E"]],
         )
         fig_jenjang.update_traces(textposition="outside", textfont=dict(size=10, color="#1A202C"))
         fig_jenjang.update_layout(**CHART_BASE, coloraxis_showscale=False)
         st.plotly_chart(fig_jenjang, use_container_width=True, theme=None)
 
-with cd3:
-    if "jumlah_satpen_negeri" in df_filtered.columns and "jumlah_satpen_swasta" in df_filtered.columns:
-        df_status = df_filtered.groupby("provinsi")[["jumlah_satpen_negeri", "jumlah_satpen_swasta"]].sum().reset_index().nlargest(8, "jumlah_satpen_negeri")
-        fig_status = px.bar(
-            df_status, x="provinsi", y=["jumlah_satpen_negeri", "jumlah_satpen_swasta"],
-            title="🏫 Sekolah Negeri vs Swasta", barmode="stack",
-            color_discrete_map={"jumlah_satpen_negeri": "#1B2A4A", "jumlah_satpen_swasta": "#F5A623"},
-            labels={"value": "Jumlah", "variable": "", "jumlah_satpen_negeri": "Negeri", "jumlah_satpen_swasta": "Swasta"},
-        )
-        fig_status.update_layout(**CHART_BASE)
-        fig_status.update_layout(xaxis_tickangle=-35, legend_orientation="h", legend_yanchor="bottom", legend_y=-0.45, legend_title_text="")
-        st.plotly_chart(fig_status, use_container_width=True, theme=None)
+with cd3: # Menjawab: Komposisi sekolah melayani siswa khusus
+    fig_status = px.pie(
+        names=["Sekolah Negeri", "Sekolah Swasta"], 
+        values=[total_negeri, total_swasta],
+        title="🏫 Komposisi Penyelenggara MBG", 
+        color_discrete_sequence=["#3182CE", "#1B2A4A"], hole=0.45
+    )
+    fig_status.update_traces(textposition="inside", textinfo="percent+label", textfont=dict(size=11, color="#FFFFFF"))
+    fig_status.update_layout(**CHART_BASE, showlegend=True, legend_orientation="h", legend_y=-0.2)
+    st.plotly_chart(fig_status, use_container_width=True, theme=None)
+
+st.divider()
+
+# SECTION 2.5 — ANALISIS TREN (WAKTU)
+
+st.markdown('<div class="section-header">📈 &nbsp;Analisis Tren Pembaruan Data</div>', unsafe_allow_html=True)
+
+if "date_pull" in df_filtered.columns:
+    df_trend = df_filtered.groupby("date_pull")[["jumlah_penerima_manfaat", "jumlah_kondisi_khusus"]].sum().reset_index()
+    df_trend = df_trend.sort_values("date_pull")
+    
+    fig_trend = px.line(
+        df_trend, x="date_pull", y=["jumlah_penerima_manfaat", "jumlah_kondisi_khusus"],
+        title="Pergerakan Total Penerima Manfaat & Kondisi Khusus", markers=True,
+        labels={"date_pull": "Tanggal", "value": "Jumlah Siswa", "variable": "Kategori"},
+        color_discrete_map={"jumlah_penerima_manfaat": "#1B2A4A", "jumlah_kondisi_khusus": "#E53E3E"}
+    )
+    fig_trend.update_layout(**CHART_BASE)
+    st.plotly_chart(fig_trend, use_container_width=True, theme=None)
 
 st.divider()
 
@@ -553,83 +626,158 @@ st.markdown(
     '🌏 &nbsp;Peta Sebaran Penerima Manfaat</div>',
     unsafe_allow_html=True
 )
-col_map, col_rank = st.columns([3, 1])
 
-with col_map:
-    if selected_prov == "Semua":
-        df_map_data = df_filtered.groupby("provinsi").agg(
+if selected_prov == "Semua":
+    df_map_data = df_filtered.groupby("provinsi").agg(
+        penerima=("jumlah_penerima_manfaat", "sum"), kondisi_khusus=("jumlah_kondisi_khusus", "sum"), satuan_pendidikan=("jumlah_satuan_pendidikan", "sum")
+    ).reset_index()
+    df_map_data["lat"] = df_map_data["provinsi"].map(lambda p: get_coords(p)[0])
+    df_map_data["lon"] = df_map_data["provinsi"].map(lambda p: get_coords(p)[1])
+    df_map_data = df_map_data.dropna(subset=["lat", "lon"])
+    hover_name, zoom_lvl, center_lat, center_lon = "provinsi", 3.8, -2.5, 118.0
+else:
+    if "kabupaten_kota" in df_filtered.columns:
+        df_map_data = df_filtered.groupby("kabupaten_kota").agg(
             penerima=("jumlah_penerima_manfaat", "sum"), kondisi_khusus=("jumlah_kondisi_khusus", "sum"), satuan_pendidikan=("jumlah_satuan_pendidikan", "sum")
         ).reset_index()
-        df_map_data["lat"] = df_map_data["provinsi"].map(lambda p: get_coords(p)[0])
-        df_map_data["lon"] = df_map_data["provinsi"].map(lambda p: get_coords(p)[1])
-        df_map_data = df_map_data.dropna(subset=["lat", "lon"])
-        hover_name, zoom_lvl, center_lat, center_lon = "provinsi", 3.6, -2.5, 118.0
-    else:
-        if "kabupaten_kota" in df_filtered.columns:
-            df_map_data = df_filtered.groupby("kabupaten_kota").agg(
-                penerima=("jumlah_penerima_manfaat", "sum"), kondisi_khusus=("jumlah_kondisi_khusus", "sum"), satuan_pendidikan=("jumlah_satuan_pendidikan", "sum")
-            ).reset_index()
-            base_lat, base_lon = get_coords(selected_prov)
-            n_kab, radius = len(df_map_data), 0.5
-            lats, lons = [], []
-            for i, row in df_map_data.iterrows():
-                kab_name = row["kabupaten_kota"]
+        base_lat, base_lon = get_coords(selected_prov)
+        n_kab, radius = len(df_map_data), 0.5
+        lats, lons = [], []
+        for i, row in df_map_data.iterrows():
+            kab_name = row["kabupaten_kota"]
+            
+            kab_lat, kab_lon = get_kab_coords(kab_name)
+            
+            if kab_lat is not None and kab_lon is not None:
+                lats.append(kab_lat)
+                lons.append(kab_lon)
                 
-                kab_lat, kab_lon = get_kab_coords(kab_name)
-                
-                if kab_lat is not None and kab_lon is not None:
-                    lats.append(kab_lat)
-                    lons.append(kab_lon)
-                    
+            else:
+                if n_kab == 1:
+                    lats.append(base_lat)
+                    lons.append(base_lon)
                 else:
-                    if n_kab == 1:
-                        lats.append(base_lat)
-                        lons.append(base_lon)
-                    else:
-                        angle = (2 * np.pi / n_kab) * i
-                        lats.append(base_lat + radius * np.cos(angle))
-                        lons.append(base_lon + radius * np.sin(angle))
-            df_map_data["lat"], df_map_data["lon"] = lats, lons
-            hover_name, zoom_lvl, center_lat, center_lon = "kabupaten_kota", 6.5, base_lat, base_lon
-        else:
-            df_map_data = pd.DataFrame()
-
-    if not df_map_data.empty and center_lat is not None:
-        fig_map = px.scatter_mapbox(
-            df_map_data, lat="lat", lon="lon", size="penerima", color="kondisi_khusus", hover_name=hover_name,
-            hover_data={"penerima": ":,", "kondisi_khusus": ":,", "satuan_pendidikan": ":,", "lat": False, "lon": False},
-            color_continuous_scale=[[0, "#4299E1"], [0.5, "#F5A623"], [1, "#E53E3E"]], size_max=50, zoom=zoom_lvl,
-            center={"lat": center_lat, "lon": center_lon}, mapbox_style="open-street-map",
-            labels={"penerima": "Total Penerima", "kondisi_khusus": "Kondisi Khusus", "satuan_pendidikan": "Total Sekolah"}
-        )
-        fig_map.update_layout(**CHART_BASE)
-        # Margin kiri bebas (dihapus)
-        fig_map.update_layout(height=460, coloraxis_colorbar=dict(title="Kondisi<br>Khusus", len=0.65, thickness=12), margin=dict(r=0, t=10, b=0))
-        st.plotly_chart(fig_map, use_container_width=True, theme=None)
+                    angle = (2 * np.pi / n_kab) * i
+                    lats.append(base_lat + radius * np.cos(angle))
+                    lons.append(base_lon + radius * np.sin(angle))
+        df_map_data["lat"], df_map_data["lon"] = lats, lons
+        hover_name, zoom_lvl, center_lat, center_lon = "kabupaten_kota", 6.5, base_lat, base_lon
     else:
-        st.info("Koordinat wilayah tidak ditemukan untuk menampilkan peta.")
+        df_map_data = pd.DataFrame()
 
-    st.caption("💡 **Mode Nasional:** 1 Gelembung = 1 Provinsi &nbsp;|&nbsp; **Mode Filter:** 1 Gelembung = 1 Kabupaten")
+if not df_map_data.empty and center_lat is not None:
+    fig_map = px.scatter_mapbox(
+        df_map_data, lat="lat", lon="lon", size="penerima", color="kondisi_khusus", hover_name=hover_name,
+        hover_data={"penerima": ":,", "kondisi_khusus": ":,", "satuan_pendidikan": ":,", "lat": False, "lon": False},
+        color_continuous_scale=[[0, "#4299E1"], [0.5, "#F5A623"], [1, "#E53E3E"]], size_max=60, zoom=zoom_lvl,
+        center={"lat": center_lat, "lon": center_lon}, mapbox_style="open-street-map",
+        labels={"penerima": "Total Penerima", "kondisi_khusus": "Kondisi Khusus", "satuan_pendidikan": "Total Sekolah"}
+    )
+    fig_map.update_layout(**CHART_BASE)
+    # Tinggi peta ditambah jadi 600 biar luas banget!
+    fig_map.update_layout(height=600, coloraxis_colorbar=dict(title="Kondisi<br>Khusus", len=0.65, thickness=12), margin=dict(r=0, t=10, b=0))
+    st.plotly_chart(fig_map, use_container_width=True, theme=None)
+else:
+    st.info("Koordinat wilayah tidak ditemukan untuk menampilkan peta.")
 
-with col_rank:
-    label_area = "Provinsi" if selected_prov == "Semua" else "Kab/Kota"
-    col_group  = "provinsi" if selected_prov == "Semua" else "kabupaten_kota"
-    
-    if col_group in df_filtered.columns:
+st.caption("💡 **Mode Nasional:** 1 Gelembung = 1 Provinsi &nbsp;|&nbsp; **Mode Filter:** 1 Gelembung = 1 Kabupaten")
+
+st.markdown("<br>", unsafe_allow_html=True) # Memberi jarak antara peta dan tabel
+
+col_tab1, col_tab2 = st.columns(2)
+
+label_area = "Provinsi" if selected_prov == "Semua" else "Kab/Kota"
+col_group  = "provinsi" if selected_prov == "Semua" else "kabupaten_kota"
+
+if col_group in df_filtered.columns:
+    with col_tab1: # Tabel Kiri
         st.markdown(f'<p style="color:#1B2A4A; font-weight:700; font-size:0.88rem; margin-bottom:0.5rem;">🏆 Top 5 {label_area} — Penerima</p>', unsafe_allow_html=True)
-        top5 = df_filtered.groupby(col_group)["jumlah_penerima_manfaat"].sum().reset_index().nlargest(5, "jumlah_penerima_manfaat").reset_index(drop=True)
-        top5.index += 1; top5.columns = [label_area, "Penerima"]; top5["Penerima"] = top5["Penerima"].apply(lambda x: f"{x:,}")
-        st.dataframe(top5, use_container_width=True)
+        top10 = df_filtered.groupby(col_group)["jumlah_penerima_manfaat"].sum().reset_index().nlargest(5, "jumlah_penerima_manfaat").reset_index(drop=True)
+        top10.index += 1; top10.columns = [label_area, "Penerima"]; top10["Penerima"] = top10["Penerima"].apply(lambda x: f"{x:,}")
+        st.dataframe(top10, use_container_width=True)
 
-        st.markdown(f'<p style="color:#1B2A4A; font-weight:700; font-size:0.88rem; margin-top:1rem; margin-bottom:0.5rem;">⚠️ Top 5 {label_area} — Kondisi Khusus</p>', unsafe_allow_html=True)
-        top5k = df_filtered.groupby(col_group)["jumlah_kondisi_khusus"].sum().reset_index().nlargest(5, "jumlah_kondisi_khusus").reset_index(drop=True)
-        top5k.index += 1; top5k.columns = [label_area, "Kond. Khusus"]; top5k["Kond. Khusus"] = top5k["Kond. Khusus"].apply(lambda x: f"{x:,}")
-        st.dataframe(top5k, use_container_width=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    with col_tab2: # Tabel Kanan
+        st.markdown(f'<p style="color:#1B2A4A; font-weight:700; font-size:0.88rem; margin-bottom:0.5rem;">⚠️ Top 5 {label_area} — Kondisi Khusus</p>', unsafe_allow_html=True)
+        top10k = df_filtered.groupby(col_group)["jumlah_kondisi_khusus"].sum().reset_index().nlargest(5, "jumlah_kondisi_khusus").reset_index(drop=True)
+        top10k.index += 1; top10k.columns = [label_area, "Kond. Khusus"]; top10k["Kond. Khusus"] = top10k["Kond. Khusus"].apply(lambda x: f"{x:,}")
+        st.dataframe(top10k, use_container_width=True)
+st.divider()
 
 st.divider()
 
+# SECTION 3.5 — ANALISIS RISIKO & TITIK GENTING
+st.markdown('<div class="section-header">🚨 &nbsp;Matriks Prioritas Intervensi (Titik Kritis)</div>', unsafe_allow_html=True)
+
+area_risk = "provinsi" if selected_prov == "Semua" else ("kecamatan" if selected_kab != "Semua" else "kabupaten_kota")
+
+if area_risk in df_filtered.columns:
+    df_risk = df_filtered.groupby(area_risk).agg(
+        total_penerima=("jumlah_penerima_manfaat", "sum"),
+        total_khusus=("jumlah_kondisi_khusus", "sum")
+    ).reset_index()
+
+    df_risk["rasio_khusus"] = (df_risk["total_khusus"] / df_risk["total_penerima"]) * 100
+    df_risk["rasio_khusus"] = df_risk["rasio_khusus"].fillna(0)
+
+    avg_rasio = df_risk["rasio_khusus"].mean()
+    avg_penerima = df_risk["total_penerima"].mean()
+    
+    def set_status(row):
+        if row["rasio_khusus"] > avg_rasio and row["total_penerima"] > avg_penerima:
+            return "GENTING (Skala Masif & Rasio Tinggi)"
+        elif row["rasio_khusus"] > avg_rasio:
+            return "WASPADA (Rasio Khusus Tinggi)"
+        elif row["total_penerima"] > avg_penerima:
+            return "PERHATIAN (Skala Penerima Masif)"
+        else:
+            return "AMAN (Terkendali)"
+            
+    df_risk["Status"] = df_risk.apply(set_status, axis=1)
+    
+    fig_risk = px.scatter(
+        df_risk, x="total_penerima", y="rasio_khusus", 
+        color="Status", size="total_penerima", hover_name=area_risk,
+        title="🎯 Pemetaan Titik Kritis Penyelenggaraan MBG",
+        labels={"total_penerima": "Total Penerima Manfaat", "rasio_khusus": "Rasio Anak Berkondisi Khusus (%)"},
+        color_discrete_map={
+            "GENTING (Skala Masif & Rasio Tinggi)": "#E53E3E",
+            "WASPADA (Rasio Khusus Tinggi)": "#F6AD55",
+            "PERHATIAN (Skala Penerima Masif)": "#F6E05E",
+            "AMAN (Terkendali)": "#4299E1"
+        }
+    )
+    
+    fig_risk.add_hline(y=avg_rasio, line_dash="dot", line_color="#A0AEC0", annotation_text="Rata-rata Rasio", annotation_position="bottom right")
+    fig_risk.add_vline(x=avg_penerima, line_dash="dot", line_color="#A0AEC0", annotation_text="Rata-rata Penerima", annotation_position="top left")
+    
+    fig_risk.update_layout(**CHART_BASE)
+    fig_risk.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, title=""))
+    
+    st.plotly_chart(fig_risk, use_container_width=True, theme=None)
+
+
+df_inklusi_wilayah = df_filtered.groupby(area_risk).agg({
+    "jumlah_kondisi_khusus": "sum",
+    "jumlah_penerima_manfaat": "sum"
+}).reset_index()
+
+df_inklusi_wilayah["Rasio (%)"] = (df_inklusi_wilayah["jumlah_kondisi_khusus"] / df_inklusi_wilayah["jumlah_penerima_manfaat"] * 100).fillna(0)
+df_inklusi_wilayah = df_inklusi_wilayah.sort_values("Rasio (%)", ascending=False).head(10)
+
+fig_kerentanan = px.bar(
+    df_inklusi_wilayah, 
+    x="Rasio (%)", 
+    y=area_risk, 
+    orientation="h",
+    title="🔥 Wilayah dengan Tingkat Kebutuhan Menu Khusus Tertinggi",
+    color="Rasio (%)",
+    color_continuous_scale="Reds",
+    text_auto=".1f"
+)
+
+fig_kerentanan.update_layout(**CHART_BASE, xaxis_title="Persentase Siswa Berkondisi Khusus (%)", yaxis_title="")
+st.plotly_chart(fig_kerentanan, use_container_width=True, theme=None)
+    
 # SECTION 4 — DEMOGRAFI & TABEL OPERASIONAL
 st.markdown('<div class="section-header">👥 &nbsp;Detail Demografi & Tabel Operasional</div>', unsafe_allow_html=True)
 
@@ -671,7 +819,7 @@ with col_demo2:
 
 # Tabel Buku Induk 
 st.markdown('<h3 style="color:#1B2A4A; font-weight:700; margin-top:1rem;">📋 Buku Induk — Data Operasional</h3>', unsafe_allow_html=True)
-search = st.text_input("search", label_visibility="collapsed", placeholder="🔍 Cari berdasarkan provinsi / kab-kota / kecamatan...")
+search = st.text_input("search", label_visibility="collapsed", placeholder="Cari berdasarkan provinsi / kab-kota / kecamatan...")
 
 kolom_tabel = [c for c in ["provinsi", "kabupaten_kota", "kecamatan", "jenjang", "jumlah_satuan_pendidikan", "jumlah_penerima_manfaat", "jumlah_kondisi_khusus"] if c in df_filtered.columns]
 
